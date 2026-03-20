@@ -8,7 +8,7 @@ export function StreamingText({ text, isStreaming }: Props) {
     <span>
       {text}
       {isStreaming && (
-        <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-0.5 align-text-bottom" />
+        <span className="inline-block w-1.5 h-4 bg-olive-500 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
       )}
     </span>
   );

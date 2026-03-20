@@ -66,42 +66,45 @@ export function FileUpload() {
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+      className={`border border-dashed rounded-lg p-4 text-center transition-all ${
         isDragging
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-300 hover:border-gray-400"
+          ? "border-olive-500 bg-olive-100/80 scale-[1.01]"
+          : "border-olive-300 hover:border-olive-400 hover:bg-olive-100/40"
       }`}
     >
       {isUploading ? (
-        <p className="text-gray-500">Uploading and processing...</p>
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-3.5 h-3.5 border-2 border-olive-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-olive-600">Processing document...</p>
+        </div>
       ) : (
-        <>
-          <p className="text-gray-500 mb-2">
-            Drag & drop a document here, or{" "}
-            <label className="text-blue-600 cursor-pointer hover:underline">
-              browse
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.docx,.txt,.md"
-                onChange={handleFileInput}
-              />
-            </label>
-          </p>
-          <p className="text-xs text-gray-400">
-            Supports PDF, DOCX, TXT, and MD files
-          </p>
-        </>
-      )}
-
-      {result && (
-        <p className="mt-3 text-sm text-green-600">
-          {result.message}
+        <p className="text-sm text-olive-500">
+          Drop a file here or{" "}
+          <label className="text-olive-700 font-medium cursor-pointer hover:text-olive-900 underline underline-offset-2 decoration-olive-300 hover:decoration-olive-500 transition-colors">
+            browse
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.docx,.txt,.md"
+              onChange={handleFileInput}
+            />
+          </label>
+          <span className="mx-1.5 text-olive-300">|</span>
+          <span className="text-xs text-olive-400">PDF, DOCX, TXT, MD</span>
         </p>
       )}
 
+      {result && (
+        <div className="mt-2.5 flex items-center justify-center gap-1.5 text-sm text-olive-700">
+          <svg className="w-3.5 h-3.5 text-olive-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+          {result.filename} — {result.chunk_count} chunks indexed
+        </div>
+      )}
+
       {error && (
-        <p className="mt-3 text-sm text-red-600">{error}</p>
+        <p className="mt-2.5 text-sm text-red-600">{error}</p>
       )}
     </div>
   );
