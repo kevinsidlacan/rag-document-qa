@@ -1,2 +1,8 @@
 # Claude Code
 .claude/
+
+# Environment variables (contain secrets)
+.env
+.env.local
+**/.env
+**/.env.local
