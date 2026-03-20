@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 interface UploadResult {
   filename: string;
@@ -6,11 +6,22 @@ interface UploadResult {
   message: string;
 }
 
-export function FileUpload() {
+interface FileUploadProps {
+  clearSignal?: number;
+}
+
+export function FileUpload({ clearSignal }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (clearSignal) {
+      setResult(null);
+      setError(null);
+    }
+  }, [clearSignal]);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 

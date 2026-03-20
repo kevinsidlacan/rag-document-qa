@@ -6,6 +6,7 @@ import { FileUpload } from "./FileUpload";
 export function ChatWindow() {
   const { messages, isStreaming, sendMessage, clearMessages } = useChat();
   const [input, setInput] = useState("");
+  const [uploadClearSignal, setUploadClearSignal] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,7 +18,13 @@ export function ChatWindow() {
     const query = input.trim();
     if (!query || isStreaming) return;
     setInput("");
+    setUploadClearSignal((s) => s + 1);
     sendMessage(query);
+  };
+
+  const handleClear = () => {
+    clearMessages();
+    setUploadClearSignal((s) => s + 1);
   };
 
   return (
@@ -31,7 +38,7 @@ export function ChatWindow() {
           </h1>
         </div>
         <button
-          onClick={clearMessages}
+          onClick={handleClear}
           className="text-xs text-olive-400 hover:text-olive-200 transition-colors uppercase tracking-widest"
         >
           Clear
@@ -40,7 +47,7 @@ export function ChatWindow() {
 
       {/* Upload area */}
       <div className="px-6 py-4 border-b border-olive-200/60 bg-olive-50/50">
-        <FileUpload />
+        <FileUpload clearSignal={uploadClearSignal} />
       </div>
 
       {/* Messages */}
