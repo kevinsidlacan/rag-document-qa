@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from rag_backend.routes.upload import router as upload_router
+from rag_backend.routes.chat import router as chat_router
 
 app = FastAPI(title="RAG Document Q&A")
 
@@ -14,6 +15,7 @@ app.add_middleware(
 )
 
 app.include_router(upload_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 
 
 @app.get("/health")
