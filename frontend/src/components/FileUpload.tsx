@@ -12,10 +12,18 @@ export function FileUpload() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const uploadFile = useCallback(async (file: File) => {
     setIsUploading(true);
     setError(null);
     setResult(null);
+
+    if (file.size > MAX_FILE_SIZE) {
+      setError("File too large. Maximum size is 10MB.");
+      setIsUploading(false);
+      return;
+    }
 
     try {
       const formData = new FormData();

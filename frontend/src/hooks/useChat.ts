@@ -55,9 +55,16 @@ export function useChat() {
           if (line.startsWith("event: ")) {
             eventType = line.slice(7);
           } else if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6));
+            let data: any;
+            try {
+              data = JSON.parse(line.slice(6));
+            } catch {
+              continue;
+            }
 
-            if (eventType === "sources") {
+            if (eventType === "error") {
+              throw new Error(data.message || "Stream error");
+            } else if (eventType === "sources") {
               setMessages((prev) => {
                 const updated = [...prev];
                 updated[updated.length - 1] = {

@@ -1,3 +1,4 @@
+import re
 import tempfile
 from pathlib import Path
 
@@ -12,20 +13,36 @@ from rag_backend.services.vector_store import upsert_chunks
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def sanitize_filename(filename: str) -> str:
+    """Strip path components and remove unsafe characters."""
+    # Take only the final path component (防 ../../etc/passwd)
+    name = Path(filename).name
+    # Keep only alphanumeric, hyphens, underscores, dots, spaces
+    name = re.sub(r"[^\w\-. ]", "_", name)
+    # Collapse repeated underscores/dots
+    name = re.sub(r"[_.]{2,}", "_", name)
+    return name or "unknown"
 
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile = File(...)):
     """Upload a document: parse → chunk → embed → store in Pinecone."""
-    filename = file.filename or "unknown"
+    filename = sanitize_filename(file.filename or "unknown")
     suffix = Path(filename).suffix.lower()
 
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"Unsupported file type: {suffix}")
 
+    # Read content with size limit
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(413, f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+
     # Save to temp file for parsing
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
         tmp.write(content)
         tmp_path = tmp.name
 
