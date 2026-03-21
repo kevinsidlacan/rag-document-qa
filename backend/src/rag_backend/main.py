@@ -21,3 +21,10 @@ app.include_router(chat_router, prefix="/api")
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+def dev():
+    """Entry point for `uv run dev`."""
+    import uvicorn
+
+    uvicorn.run("rag_backend.main:app", reload=True, port=3001)
