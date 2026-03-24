@@ -12,6 +12,9 @@ def chunk_text(
     if not text.strip():
         return []
 
+    if chunk_overlap >= chunk_size:
+        raise ValueError("chunk_overlap must be less than chunk_size")
+
     chunks: list[TextChunk] = []
     start = 0
     chunk_index = 0

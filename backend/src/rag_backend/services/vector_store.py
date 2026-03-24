@@ -1,3 +1,5 @@
+import uuid
+
 from pinecone import Pinecone
 
 from rag_backend.config import PINECONE_API_KEY, PINECONE_INDEX_NAME
@@ -17,9 +19,10 @@ def _get_index():
 def upsert_chunks(chunks: list[TextChunk], embeddings: list[list[float]]) -> int:
     """Upsert text chunks with their embeddings into Pinecone."""
     index = _get_index()
+    upload_id = uuid.uuid4().hex[:12]
     vectors = []
     for chunk, embedding in zip(chunks, embeddings):
-        vector_id = f"{chunk.filename}_{chunk.chunk_index}"
+        vector_id = f"{upload_id}_{chunk.filename}_{chunk.chunk_index}"
         vectors.append({
             "id": vector_id,
             "values": embedding,

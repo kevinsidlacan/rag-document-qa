@@ -25,10 +25,8 @@ def parse_document(file_path: str, original_filename: str) -> tuple[str, dict]:
 
 
 def _parse_pdf(path: Path) -> str:
-    doc = fitz.open(str(path))
-    pages = [page.get_text() for page in doc]
-    doc.close()
-    return "\n".join(pages)
+    with fitz.open(str(path)) as doc:
+        return "\n".join(page.get_text() for page in doc)
 
 
 def _parse_docx(path: Path) -> str:

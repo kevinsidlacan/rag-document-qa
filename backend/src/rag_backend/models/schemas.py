@@ -1,8 +1,16 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ChatRequest(BaseModel):
-    query: str = Field(..., max_length=2000)
+    query: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Query must not be blank")
+        return stripped
 
 
 class Source(BaseModel):

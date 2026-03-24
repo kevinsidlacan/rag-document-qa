@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import re
 import tempfile
 from pathlib import Path
@@ -9,6 +11,8 @@ from rag_backend.services.document_parser import parse_document
 from rag_backend.services.chunker import chunk_text
 from rag_backend.services.embeddings import get_embeddings
 from rag_backend.services.vector_store import upsert_chunks
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -36,10 +40,18 @@ async def upload_file(file: UploadFile = File(...)):
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"Unsupported file type: {suffix}")
 
-    # Read content with size limit
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(413, f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+    # Read content in chunks to enforce size limit without buffering unlimited data
+    chunks_buf: list[bytes] = []
+    total_read = 0
+    while True:
+        chunk = await file.read(1024 * 1024)  # 1MB at a time
+        if not chunk:
+            break
+        total_read += len(chunk)
+        if total_read > MAX_FILE_SIZE:
+            raise HTTPException(413, f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB")
+        chunks_buf.append(chunk)
+    content = b"".join(chunks_buf)
 
     # Save to temp file for parsing
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -47,23 +59,30 @@ async def upload_file(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
+        logger.info("Processing upload: %s (%d bytes)", filename, len(content))
         text, _metadata = parse_document(tmp_path, filename)
         chunks = chunk_text(text, filename)
 
         if not chunks:
             raise HTTPException(400, "No text content found in document")
 
-        # Embed all chunks
+        # Embed all chunks (run in thread to avoid blocking the event loop)
         texts = [c.text for c in chunks]
-        embeddings = get_embeddings(texts)
+        embeddings = await asyncio.to_thread(get_embeddings, texts)
 
         # Store in Pinecone
-        upsert_chunks(chunks, embeddings)
+        await asyncio.to_thread(upsert_chunks, chunks, embeddings)
 
+        logger.info("Upload complete: %s — %d chunks indexed", filename, len(chunks))
         return UploadResponse(
             filename=filename,
             chunk_count=len(chunks),
             message=f"Successfully processed {filename} into {len(chunks)} chunks",
         )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Upload failed: %s", filename)
+        raise HTTPException(500, "An error occurred while processing the document")
     finally:
         Path(tmp_path).unlink(missing_ok=True)

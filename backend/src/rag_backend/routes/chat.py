@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -17,11 +18,11 @@ router = APIRouter()
 @router.post("/chat")
 async def chat(request: ChatRequest):
     """Embed query → search Pinecone → stream LLM response via SSE."""
-    # 1. Embed the query
-    query_embedding = get_embedding(request.query)
+    # 1. Embed the query (run in thread to avoid blocking the event loop)
+    query_embedding = await asyncio.to_thread(get_embedding, request.query)
 
     # 2. Search for relevant chunks
-    results = search(query_embedding, top_k=5)
+    results = await asyncio.to_thread(search, query_embedding, 5)
 
     # 3. Stream the response as SSE
     async def event_stream():

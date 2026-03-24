@@ -30,6 +30,7 @@ export function FileUpload({ clearSignal }: FileUploadProps) {
   }, [clearSignal]);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_FILES = 10;
 
   const uploadSingleFile = useCallback(async (file: File, key: string) => {
     setFiles((prev) => {
@@ -82,7 +83,12 @@ export function FileUpload({ clearSignal }: FileUploadProps) {
 
   const uploadFiles = useCallback(
     (fileList: FileList) => {
-      Array.from(fileList).forEach((file, i) => {
+      const selected = Array.from(fileList);
+      if (selected.length > MAX_FILES) {
+        alert(`You can upload at most ${MAX_FILES} files at once.`);
+        return;
+      }
+      selected.forEach((file, i) => {
         const key = `${file.name}-${Date.now()}-${i}`;
         uploadSingleFile(file, key);
       });
