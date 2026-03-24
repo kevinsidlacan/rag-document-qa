@@ -6,33 +6,44 @@ interface UploadResult {
   message: string;
 }
 
+type FileStatus = "uploading" | "success" | "error";
+
+interface FileUploadEntry {
+  file: File;
+  status: FileStatus;
+  result?: UploadResult;
+  error?: string;
+}
+
 interface FileUploadProps {
   clearSignal?: number;
 }
 
 export function FileUpload({ clearSignal }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [result, setResult] = useState<UploadResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<Map<string, FileUploadEntry>>(new Map());
+
+  const isUploading = [...files.values()].some((f) => f.status === "uploading");
 
   useEffect(() => {
-    if (clearSignal) {
-      setResult(null);
-      setError(null);
-    }
+    if (clearSignal) setFiles(new Map());
   }, [clearSignal]);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-  const uploadFile = useCallback(async (file: File) => {
-    setIsUploading(true);
-    setError(null);
-    setResult(null);
+  const uploadSingleFile = useCallback(async (file: File, key: string) => {
+    setFiles((prev) => {
+      const next = new Map(prev);
+      next.set(key, { file, status: "uploading" });
+      return next;
+    });
 
     if (file.size > MAX_FILE_SIZE) {
-      setError("File too large. Maximum size is 10MB.");
-      setIsUploading(false);
+      setFiles((prev) => {
+        const next = new Map(prev);
+        next.set(key, { file, status: "error", error: "File too large. Maximum size is 10MB." });
+        return next;
+      });
       return;
     }
 
@@ -51,30 +62,49 @@ export function FileUpload({ clearSignal }: FileUploadProps) {
       }
 
       const data: UploadResult = await response.json();
-      setResult(data);
+      setFiles((prev) => {
+        const next = new Map(prev);
+        next.set(key, { file, status: "success", result: data });
+        return next;
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setIsUploading(false);
+      setFiles((prev) => {
+        const next = new Map(prev);
+        next.set(key, {
+          file,
+          status: "error",
+          error: err instanceof Error ? err.message : "Upload failed",
+        });
+        return next;
+      });
     }
   }, []);
+
+  const uploadFiles = useCallback(
+    (fileList: FileList) => {
+      Array.from(fileList).forEach((file, i) => {
+        const key = `${file.name}-${Date.now()}-${i}`;
+        uploadSingleFile(file, key);
+      });
+    },
+    [uploadSingleFile]
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      const file = e.dataTransfer.files[0];
-      if (file) uploadFile(file);
+      if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files);
     },
-    [uploadFile]
+    [uploadFiles]
   );
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) uploadFile(file);
+      if (e.target.files && e.target.files.length > 0) uploadFiles(e.target.files);
+      e.target.value = "";
     },
-    [uploadFile]
+    [uploadFiles]
   );
 
   return (
@@ -91,39 +121,59 @@ export function FileUpload({ clearSignal }: FileUploadProps) {
           : "border-olive-300 hover:border-olive-400 hover:bg-olive-100/40"
       }`}
     >
-      {isUploading ? (
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-3.5 h-3.5 border-2 border-olive-400 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-olive-600">Processing document...</p>
-        </div>
-      ) : (
-        <p className="text-sm text-olive-500">
-          Drop a file here or{" "}
-          <label className="text-olive-700 font-medium cursor-pointer hover:text-olive-900 underline underline-offset-2 decoration-olive-300 hover:decoration-olive-500 transition-colors">
-            browse
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.docx,.txt,.md"
-              onChange={handleFileInput}
-            />
-          </label>
-          <span className="mx-1.5 text-olive-300">|</span>
-          <span className="text-xs text-olive-400">PDF, DOCX, TXT, MD</span>
-        </p>
-      )}
+      <p className="text-sm text-olive-500">
+        {isUploading ? "Processing documents..." : "Drop files here or "}
+        {!isUploading && (
+          <>
+            <label className="text-olive-700 font-medium cursor-pointer hover:text-olive-900 underline underline-offset-2 decoration-olive-300 hover:decoration-olive-500 transition-colors">
+              browse
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.docx,.txt,.md"
+                multiple
+                onChange={handleFileInput}
+              />
+            </label>
+            <span className="mx-1.5 text-olive-300">|</span>
+            <span className="text-xs text-olive-400">PDF, DOCX, TXT, MD</span>
+          </>
+        )}
+      </p>
 
-      {result && (
-        <div className="mt-2.5 flex items-center justify-center gap-1.5 text-sm text-olive-700">
-          <svg className="w-3.5 h-3.5 text-olive-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-          {result.filename} — {result.chunk_count} chunks indexed
-        </div>
-      )}
-
-      {error && (
-        <p className="mt-2.5 text-sm text-red-600">{error}</p>
+      {files.size > 0 && (
+        <ul className="mt-2.5 space-y-1">
+          {[...files.values()].map((entry, i) => (
+            <li key={i} className="flex items-center justify-center gap-1.5 text-sm">
+              {entry.status === "uploading" && (
+                <>
+                  <div className="w-3 h-3 border-2 border-olive-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-olive-600">{entry.file.name}</span>
+                </>
+              )}
+              {entry.status === "success" && entry.result && (
+                <>
+                  <svg className="w-3.5 h-3.5 text-olive-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <span className="text-olive-700">
+                    {entry.result.filename} — {entry.result.chunk_count} chunks indexed
+                  </span>
+                </>
+              )}
+              {entry.status === "error" && (
+                <>
+                  <svg className="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                  <span className="text-red-600">
+                    {entry.file.name} — {entry.error}
+                  </span>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

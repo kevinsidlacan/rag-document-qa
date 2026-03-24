@@ -60,7 +60,7 @@ export function ChatWindow() {
               </svg>
             </div>
             <p className="text-sm text-olive-700 font-medium">
-              Upload a document to get started
+              Upload documents to get started
             </p>
             <p className="text-xs text-olive-400">
               Then ask questions about its contents
